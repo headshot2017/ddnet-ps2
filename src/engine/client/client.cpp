@@ -3285,19 +3285,19 @@ int main(int argc, const char **argv) // ignore_convention
 
 	// serial I/O module (needed for memory card & input pad modules)
 	ret = SifLoadModule("rom0:SIO2MAN", 0, NULL);
-	if (ret < 0) printf("SifLoadModule SIO2MAN failed: %d\n", &ret);
+	if (ret < 0) printf("SifLoadModule SIO2MAN failed: %d\n", ret);
 
 	// memory card module
 	ret = SifLoadModule("rom0:MCMAN",   0, NULL);
-	if (ret < 0) printf("SifLoadModule MCMAN failed: %d\n", &ret);
+	if (ret < 0) printf("SifLoadModule MCMAN failed: %d\n", ret);
 
 	// memory card server module
 	ret = SifLoadModule("rom0:MCSERV",  0, NULL);
-	if (ret < 0) printf("SifLoadModule MCSERV failed: %d\n", &ret);
+	if (ret < 0) printf("SifLoadModule MCSERV failed: %d\n", ret);
 
 	// Input pad module
 	ret = SifLoadModule("rom0:PADMAN",  0, NULL);
-	if (ret < 0) printf("SifLoadModule PADMAN failed: %d\n", &ret);
+	if (ret < 0) printf("SifLoadModule PADMAN failed: %d\n", ret);
 
 	SifLoadBuffer(ps2dev9_irx);
 	SifLoadBuffer(netman_irx);
@@ -3325,7 +3325,7 @@ int main(int argc, const char **argv) // ignore_convention
 			ret = 0x10000;
 			while(ret--) asm("nop\nnop\nnop\nnop");
 	}
-	if (!retryCount) printf("Failed to init USB RPC: %d\n", &ret);
+	if (!retryCount) printf("Failed to init USB RPC: %d\n", ret);
 	else printf("Loaded USB driver\n");
 
 
