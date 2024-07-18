@@ -27,7 +27,7 @@ DEPFILES := $(OBJS:%.o=%.d)
 EE_INCS 	:= -Isrc -I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/include -I$(PS2SDK)/ports/include/opus -I$(PS2SDK)/ports/include/freetype2
 EE_CFLAGS   := $(DEPFLAGS) -D_EE
 EE_LDFLAGS  := -L$(PS2SDK)/ports/lib -L$(GSKIT)/lib -L$(PS2SDK)/ee/lib
-EE_LIBS     := -lfreetype -lz -lpng -lcurl -lwolfssl -lopusfile -lopus -logg -lps2ip -lnetman -laudsrv -lpad -lgskit -ldmakit -lpacket -ldma -lgraph -ldraw -lmc
+EE_LIBS     := -lz -lpng -lcurl -lwolfssl -lopusfile -lopus -logg -lps2ip -lnetman -laudsrv -lpad -lgskit -ldmakit -lpacket -ldma -lgraph -ldraw -lmc
 EE_LINKFILE := $(PS2SDK)/ee/startup/linkfile
 EE_OBJS     := $(OBJS)
 
