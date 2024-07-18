@@ -55,6 +55,10 @@
 		#include <ps2ip.h>
 		#include <netman.h>
 		#include <kernel.h>
+		#define NEWLIB_PORT_AWARE
+		#include <fileio.h>
+		#include <io_common.h>
+		#include <iox_stat.h>
 		int  lwip_shutdown(int s, int how);
 		int  lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen);
 		int  lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
@@ -1701,7 +1705,7 @@ int net_init()
 	ps2ipInit(&IP, &NM, &GW);
 
 	int err = ethEnableDHCP();
-	if (err < 0) printf("error %d enabling DHCP\n", &err);
+	if (err < 0) printf("error %d enabling DHCP\n", err);
 
 	printf("waiting for net link connection...\n");
 	if(ethWaitValidNetIFLinkState() != 0)
@@ -1720,6 +1724,17 @@ int net_init()
 #endif
 
 	return 0;
+}
+
+// Using dirent to loop through dirs doesn't work because entry->d_name is null
+// However with fioDread this works, although the function returns an iox_dirent_t
+// instead of the expected io_dirent_t, and thus the offset to the name is different
+static char* GetEntryName(char* src)
+{
+	for (int i = 0; i < 256; i++)
+		if (src[i]) return &src[i];
+
+	return NULL;
 }
 
 int fs_listdir_info(const char *dir, FS_LISTDIR_INFO_CALLBACK cb, int type, void *user)
@@ -1751,26 +1766,30 @@ int fs_listdir_info(const char *dir, FS_LISTDIR_INFO_CALLBACK cb, int type, void
 	FindClose(handle);
 	return 0;
 #else
-	struct dirent *entry;
+	io_dirent_t entry;
 	char buffer[1024*2];
 	int length;
-	DIR *d = opendir(dir);
 
-	if(!d)
+	int fd = fioDopen(dir);
+	if (fd < 0)
 		return 0;
 
 	str_format(buffer, sizeof(buffer), "%s/", dir);
 	length = str_length(buffer);
 
-	while((entry = readdir(d)) != NULL)
+	mem_zero(&entry, sizeof(entry));
+
+	while(fioDread(fd, &entry) > 0)
 	{
-		str_copy(buffer+length, entry->d_name, (int)sizeof(buffer)-length);
-		if(cb(entry->d_name, fs_getmtime(buffer), fs_is_dir(buffer), type, user))
+		char* name = GetEntryName(entry.name);
+		if (!name) continue;
+		str_copy(buffer+length, name, (int)sizeof(buffer)-length);
+		if(cb(name, fs_getmtime(buffer), fs_is_dir(buffer), type, user))
 			break;
 	}
 
 	/* close the directory and return */
-	closedir(d);
+	fioDclose(fd);
 	return 0;
 #endif
 }
@@ -1804,26 +1823,30 @@ int fs_listdir(const char *dir, FS_LISTDIR_CALLBACK cb, int type, void *user)
 	FindClose(handle);
 	return 0;
 #else
-	struct dirent *entry;
+	io_dirent_t entry;
 	char buffer[1024*2];
 	int length;
-	DIR *d = opendir(dir);
 
-	if(!d)
+	int fd = fioDopen(dir);
+	if (fd < 0)
 		return 0;
 
 	str_format(buffer, sizeof(buffer), "%s/", dir);
 	length = str_length(buffer);
 
-	while((entry = readdir(d)) != NULL)
+	mem_zero(&entry, sizeof(entry));
+
+	while(fioDread(fd, &entry) > 0)
 	{
-		str_copy(buffer+length, entry->d_name, (int)sizeof(buffer)-length);
-		if(cb(entry->d_name, fs_is_dir(buffer), type, user))
+		char* name = GetEntryName(entry.name);
+		if (!name) continue;
+		str_copy(buffer+length, name, (int)sizeof(buffer)-length);
+		if(cb(name, fs_is_dir(buffer), type, user))
 			break;
 	}
 
 	/* close the directory and return */
-	closedir(d);
+	fioDclose(fd);
 	return 0;
 #endif
 }
