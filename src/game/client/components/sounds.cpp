@@ -216,6 +216,16 @@ void CSounds::Stop(int SetId)
 		Sound()->Stop(pSet->m_aSounds[i].m_Id);
 }
 
+void CSounds::PlayMusic()
+{
+	
+}
+
+void CSounds::StopMusic()
+{
+	
+}
+
 ISound::CVoiceHandle CSounds::PlaySample(int Chn, int SampleId, float Vol, int Flags)
 {
 	if((Chn == CHN_MUSIC && !g_Config.m_SndMusic) || SampleId == -1)

@@ -887,7 +887,6 @@ int CMenus::Render()
 	static bool s_First = true;
 	if(s_First)
 	{
-		m_pClient->m_pSounds->Enqueue(CSounds::CHN_MUSIC, SOUND_MENU);
 		s_First = false;
 		m_DoubleClickIndex = -1;
 
@@ -1698,7 +1697,7 @@ void CMenus::OnStateChange(int NewState, int OldState)
 	if(NewState == IClient::STATE_OFFLINE)
 	{
 		if(OldState >= IClient::STATE_ONLINE && NewState < IClient::STATE_QUITING)
-			m_pClient->m_pSounds->Play(CSounds::CHN_MUSIC, SOUND_MENU, 1.0f);
+			m_pClient->m_pSounds->PlayMusic();
 		m_Popup = POPUP_NONE;
 		if(Client()->ErrorString() && Client()->ErrorString()[0] != 0)
 		{

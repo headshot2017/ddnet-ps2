@@ -23,16 +23,15 @@ public:
 
 	// TODO: Refactor: clean this mess up
 	static IOHANDLE ms_File;
-	static long int ReadData(void *pBuffer, long int Size);
-	static int DecodeWV(int SampleID, const void *pData, unsigned DataSize);
+	static int DecodeADPCM(int SampleID, void *pData, unsigned DataSize);
 	static int DecodeOpus(int SampleID, const void *pData, unsigned DataSize);
 
 	virtual bool IsSoundEnabled() { return m_SoundEnabled != 0; }
 
 	virtual int LoadWV(const char *pFilename);
-	virtual int LoadWVFromMem(const void *pData, unsigned DataSize, bool FromEditor);
+	virtual int LoadWVFromMem(void *pData, unsigned DataSize, bool FromEditor);
 	virtual int LoadOpus(const char *pFilename);
-	virtual int LoadOpusFromMem(const void *pData, unsigned DataSize, bool FromEditor);
+	virtual int LoadOpusFromMem(void *pData, unsigned DataSize, bool FromEditor);
 	virtual void UnloadSample(int SampleID);
 
 	virtual float GetSampleDuration(int SampleID); // in s

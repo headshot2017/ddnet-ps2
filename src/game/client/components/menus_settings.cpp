@@ -973,10 +973,10 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 		if(g_Config.m_SndEnable)
 		{
 			if(g_Config.m_SndMusic && Client()->State() == IClient::STATE_OFFLINE)
-				m_pClient->m_pSounds->Play(CSounds::CHN_MUSIC, SOUND_MENU, 1.0f);
+				m_pClient->m_pSounds->PlayMusic();
 		}
 		else
-			m_pClient->m_pSounds->Stop(SOUND_MENU);
+			m_pClient->m_pSounds->StopMusic();
 		m_NeedRestartSound = g_Config.m_SndEnable && (!s_SndEnable || s_SndRate != g_Config.m_SndRate);
 	}
 
@@ -990,9 +990,9 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 		if(Client()->State() == IClient::STATE_OFFLINE)
 		{
 			if(g_Config.m_SndMusic)
-				m_pClient->m_pSounds->Play(CSounds::CHN_MUSIC, SOUND_MENU, 1.0f);
+				m_pClient->m_pSounds->PlayMusic();
 			else
-				m_pClient->m_pSounds->Stop(SOUND_MENU);
+				m_pClient->m_pSounds->StopMusic();
 		}
 	}
 

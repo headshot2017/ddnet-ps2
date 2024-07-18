@@ -9,6 +9,7 @@
 #include <engine/shared/config.h>
 
 #include <audsrv.h>
+#include <kernel.h>
 
 #include "sound.h"
 
@@ -34,6 +35,7 @@ struct CSample
 	int m_LoopStart;
 	int m_LoopEnd;
 	int m_PausedAt;
+	bool m_IsADPCM;
 };
 
 struct CChannel
@@ -74,24 +76,9 @@ static int m_MixingRate = 48000;
 static volatile int m_SoundVolume = 100;
 
 static int m_NextVoice = 0;
-static int *m_pMixBuffer = 0;	// buffer only used by the thread callback function
 static unsigned m_MaxFrames = 0;
 
-static const void *ms_pWVBuffer = 0x0;
-static int ms_WVBufferPosition = 0;
-static int ms_WVBufferSize = 0;
-
 const int DefaultDistance = 1500;
-
-// TODO: there should be a faster way todo this
-static short Int2Short(int i)
-{
-	if(i > 0x7fff)
-		return 0x7fff;
-	else if(i < -0x7fff)
-		return -0x7fff;
-	return i;
-}
 
 static int IntAbs(int i)
 {
@@ -209,20 +196,13 @@ void CSound::RateConvert(int SampleID)
 	pSample->m_Rate = m_MixingRate;
 }
 
-long int CSound::ReadData(void *pBuffer, long int Size)
-{
-	int ChunkSize = min((int)Size, ms_WVBufferSize - ms_WVBufferPosition);
-	mem_copy(pBuffer, (const char *)ms_pWVBuffer + ms_WVBufferPosition, ChunkSize);
-	ms_WVBufferPosition += ChunkSize;
-	return ChunkSize;
-}
-
 int CSound::DecodeOpus(int SampleID, const void *pData, unsigned DataSize)
 {
 	if(SampleID == -1 || SampleID >= NUM_SAMPLES)
 		return -1;
 
 	CSample *pSample = &m_aSamples[SampleID];
+	pSample->m_IsADPCM = false;
 
 	OggOpusFile *OpusFile = op_open_memory((const unsigned char *) pData, DataSize, NULL);
 	if (OpusFile)
@@ -263,67 +243,24 @@ int CSound::DecodeOpus(int SampleID, const void *pData, unsigned DataSize)
 	return SampleID;
 }
 
-int CSound::DecodeWV(int SampleID, const void *pData, unsigned DataSize)
+int CSound::DecodeADPCM(int SampleID, void *pData, unsigned DataSize)
 {
 	if(SampleID == -1 || SampleID >= NUM_SAMPLES)
 		return -1;
 
 	CSample *pSample = &m_aSamples[SampleID];
-	char aError[100];
-	WavpackContext *pContext;
 
-	ms_pWVBuffer = pData;
-	ms_WVBufferSize = DataSize;
-	ms_WVBufferPosition = 0;
+	audsrv_adpcm_t* sample = (audsrv_adpcm_t*)mem_alloc(sizeof(audsrv_adpcm_t), 1);
+	mem_zero(sample, sizeof(audsrv_adpcm_t));
 
-	pContext = WavpackOpenFileInput(ReadData, aError);
-	if (pContext)
+	if (audsrv_load_adpcm(sample, pData, DataSize))
 	{
-		int NumSamples = WavpackGetNumSamples(pContext);
-		int BitsPerSample = WavpackGetBitsPerSample(pContext);
-		unsigned int SampleRate = WavpackGetSampleRate(pContext);
-		int NumChannels = WavpackGetNumChannels(pContext);
-		int32_t *pSrc;
-		short *pDst;
-		int i;
-
-		pSample->m_Channels = NumChannels;
-		pSample->m_Rate = SampleRate;
-
-		if(pSample->m_Channels > 2)
-		{
-			dbg_msg("sound/wv", "file is not mono or stereo.");
-			return -1;
-		}
-
-		if(BitsPerSample != 16)
-		{
-			dbg_msg("sound/wv", "bps is %d, not 16", BitsPerSample);
-			return -1;
-		}
-
-		int32_t *pBuffer = (int32_t *)mem_alloc(4*NumSamples*NumChannels, 1);
-		WavpackUnpackSamples(pContext, pBuffer, NumSamples); // TODO: check return value
-		pSrc = pBuffer;
-
-		pSample->m_pData = (short *)mem_alloc(2*NumSamples*NumChannels, 1);
-		pDst = pSample->m_pData;
-
-		for (i = 0; i < NumSamples*NumChannels; i++)
-			*pDst++ = (short)*pSrc++;
-
-		_mem_free(pBuffer);
-
-		pSample->m_NumFrames = NumSamples;
-		pSample->m_LoopStart = -1;
-		pSample->m_LoopEnd = -1;
-		pSample->m_PausedAt = 0;
-	}
-	else
-	{
-		dbg_msg("sound/wv", "failed to decode sample (%s)", aError);
+		dbg_msg("sound/adpcm", "failed to load ADPCM");
 		return -1;
 	}
+
+	pSample->m_pData = (short*)sample;
+	pSample->m_IsADPCM = true;
 
 	return SampleID;
 }
@@ -395,7 +332,7 @@ int CSound::LoadWV(const char *pFilename)
 	ms_File = m_pStorage->OpenFile(pFilename, IOFLAG_READ, IStorage::TYPE_ALL);
 	if(!ms_File)
 	{
-		dbg_msg("sound/wv", "failed to open file. filename='%s'", pFilename);
+		dbg_msg("sound/adpcm", "failed to open file. filename='%s'", pFilename);
 		return -1;
 	}
 
@@ -409,27 +346,29 @@ int CSound::LoadWV(const char *pFilename)
 	if(DataSize <= 0)
 	{
 		io_close(ms_File);
-		dbg_msg("sound/wv", "failed to open file. filename='%s'", pFilename);
+		dbg_msg("sound/adpcm", "failed to open file. filename='%s'", pFilename);
 		return -1;
 	}
 
 	char *pData = new char[DataSize];
 	io_read(ms_File, pData, DataSize);
 
-	SampleID = DecodeWV(SampleID, pData, DataSize);
+	// flush cache, otherwise it will load garbage
+	FlushCache(0);
+
+	SampleID = DecodeADPCM(SampleID, pData, DataSize);
 
 	delete[] pData;
 	io_close(ms_File);
 	ms_File = NULL;
 
 	if(g_Config.m_Debug)
-		dbg_msg("sound/wv", "loaded %s", pFilename);
+		dbg_msg("sound/adpcm", "loaded %s", pFilename);
 
-	RateConvert(SampleID);
 	return SampleID;
 }
 
-int CSound::LoadOpusFromMem(const void *pData, unsigned DataSize, bool FromEditor = false)
+int CSound::LoadOpusFromMem(void *pData, unsigned DataSize, bool FromEditor = false)
 {
 	// don't waste memory on sound when we are stress testing
 	if(g_Config.m_DbgStress)
@@ -452,7 +391,7 @@ int CSound::LoadOpusFromMem(const void *pData, unsigned DataSize, bool FromEdito
 	return SampleID;
 }
 
-int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool FromEditor = false)
+int CSound::LoadWVFromMem(void *pData, unsigned DataSize, bool FromEditor = false)
 {
 	// don't waste memory on sound when we are stress testing
 	if(g_Config.m_DbgStress)
@@ -469,9 +408,8 @@ int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool FromEditor 
 	if(SampleID < 0)
 		return -1;
 
-	SampleID = DecodeWV(SampleID, pData, DataSize);
+	SampleID = DecodeADPCM(SampleID, pData, DataSize);
 
-	RateConvert(SampleID);
 	return SampleID;
 }
 
@@ -481,6 +419,10 @@ void CSound::UnloadSample(int SampleID)
 		return;
 
 	Stop(SampleID);
+
+	if (m_aSamples[SampleID].m_IsADPCM)
+		audsrv_free_adpcm((audsrv_adpcm_t*)m_aSamples[SampleID].m_pData);
+
 	_mem_free(m_aSamples[SampleID].m_pData);
 
 	m_aSamples[SampleID].m_pData = 0x0;
@@ -635,6 +577,7 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 	}
 
 	// voice found, use it
+	/*
 	if(VoiceID != -1)
 	{
 		m_aVoices[VoiceID].m_pSample = &m_aSamples[SampleID];
@@ -651,6 +594,82 @@ ISound::CVoiceHandle CSound::Play(int ChannelID, int SampleID, int Flags, float 
 		m_aVoices[VoiceID].m_Shape = ISound::SHAPE_CIRCLE;
 		m_aVoices[VoiceID].m_Circle.m_Radius = DefaultDistance;
 		Age = m_aVoices[VoiceID].m_Age;
+	}
+	*/
+
+	CChannel* pChannel = &m_aChannels[ChannelID];
+	CSample* pSample = &m_aSamples[SampleID];
+
+	int Rvol = (int)(pChannel->m_Vol*(255/255.0f));
+	int Lvol = (int)(pChannel->m_Vol*(255/255.0f));
+
+	// volume calculation
+	if(Flags&ISound::FLAG_POS && pChannel->m_Pan)
+	{
+		// TODO: we should respect the channel panning value
+		int dx = x - m_CenterX;
+		int dy = y - m_CenterY;
+		//
+		int p = IntAbs(dx);
+		float FalloffX = 0.0f;
+		float FalloffY = 0.0f;
+
+		int RangeX = 0; // for panning
+		bool InVoiceField = false;
+
+		// circle
+		{
+			float r = DefaultDistance;
+			RangeX = r;
+
+			int Dist = (int)sqrtf((float)dx*dx+dy*dy); // nasty float
+			if(Dist < r)
+			{
+				InVoiceField = true;
+
+				// falloff
+				int FalloffDistance = 0.0f; // r*v->m_Falloff
+				if(Dist > FalloffDistance)
+					FalloffX = FalloffY = (r-Dist)/(r-FalloffDistance);
+				else
+					FalloffX = FalloffY = 1.0f;
+			}
+			else
+				InVoiceField = false;
+		}
+
+		if(InVoiceField)
+		{
+			// panning
+			if(!(Flags&ISound::FLAG_NO_PANNING))
+			{
+				if(dx > 0)
+					Lvol = ((RangeX-p)*Lvol)/RangeX;
+				else
+					Rvol = ((RangeX-p)*Rvol)/RangeX;
+			}
+
+			{
+				Lvol *= FalloffX;
+				Rvol *= FalloffY;
+			}
+		}
+		else
+		{
+			Lvol = 0;
+			Rvol = 0;
+		}
+	}
+
+	if (Lvol || Rvol)
+	{
+		int channel = audsrv_ch_play_adpcm(-1, (audsrv_adpcm_t*)pSample->m_pData);
+		if (channel >= 0)
+		{
+			int vol = (int)((Lvol+Rvol)/2 / 255.f * 100);
+			int pan = (int)((Rvol-Lvol) / 255.f * 100);
+			audsrv_adpcm_set_volume_and_pan(channel, vol, pan);
+		}
 	}
 
 	lock_unlock(m_SoundLock);
