@@ -42,6 +42,13 @@ void CGraphics_PS2_gsKit::Flush()
 		for (int i=0; i<m_NumVertices; i+=3)
 		{
 			// adjust vertices based on ortho projection
+			m_aVertices[i+0].m_Pos.x -= m_ScreenX0;
+			m_aVertices[i+0].m_Pos.y -= m_ScreenY0;
+			m_aVertices[i+1].m_Pos.x -= m_ScreenX0;
+			m_aVertices[i+1].m_Pos.y -= m_ScreenY0;
+			m_aVertices[i+2].m_Pos.x -= m_ScreenX0;
+			m_aVertices[i+2].m_Pos.y -= m_ScreenY0;
+
 			m_aVertices[i+0].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
 			m_aVertices[i+0].m_Pos.y /= (m_ScreenY1-m_ScreenY0) / gsGlobal->Height;
 			m_aVertices[i+1].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
