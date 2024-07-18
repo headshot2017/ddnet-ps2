@@ -18,6 +18,10 @@
 #endif
 
 #if defined(CONF_FAMILY_UNIX)
+	#define LIBCGLUE_SYS_SOCKET_ALIASES 0
+	#define LIBCGLUE_SYS_SOCKET_NO_ALIASES
+	#define LIBCGLUE_ARPA_INET_NO_ALIASES
+
 	#include <sys/time.h>
 	#include <unistd.h>
 
@@ -48,9 +52,9 @@
 	#endif
 
 	#if defined(_EE)
-		#include <ps2sdkapi.h>
 		#include <ps2ip.h>
 		#include <netman.h>
+		#include <kernel.h>
 		int  lwip_shutdown(int s, int how);
 		int  lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen);
 		int  lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
@@ -67,6 +71,8 @@
 		int  lwip_getaddrinfo(const char *nodename, const char *servname, const struct addrinfo *hints, struct addrinfo **res);
 		void lwip_freeaddrinfo(struct addrinfo *ai);
 		int  ip4addr_aton(const char *cp, ip4_addr_t *addr);
+		int ps2ip_getconfig(char* netif_name,t_ip_info* ip_info);
+		int ps2ip_setconfig(const t_ip_info* ip_info);
 	#endif
 
 #elif defined(CONF_FAMILY_WINDOWS)
@@ -1068,7 +1074,7 @@ static int priv_net_create_socket(int domain, int type, struct sockaddr *addr, i
 	int sock, e;
 
 	/* create socket */
-	sock = lwip_socket(domain, type, 0);
+	sock = lwip_socket(domain, type, (type == SOCK_STREAM) ? IPPROTO_TCP : IPPROTO_UDP);
 	if(sock < 0)
 	{
 #if defined(CONF_FAMILY_WINDOWS)
@@ -1139,6 +1145,7 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 		tmpbindaddr.type = NETTYPE_IPV4;
 		netaddr_to_sockaddr_in(&tmpbindaddr, &addr);
 		socket = priv_net_create_socket(AF_INET, SOCK_DGRAM, (struct sockaddr *)&addr, sizeof(addr));
+		if (socket < 0) socket = 0;
 		if(socket >= 0)
 		{
 			sock.type |= NETTYPE_IPV4;
@@ -1610,6 +1617,74 @@ int net_would_block()
 #endif
 }
 
+
+// https://github.com/ps2dev/ps2sdk/blob/master/NETMAN.txt
+// https://github.com/ps2dev/ps2sdk/blob/master/ee/network/tcpip/samples/tcpip_dhcp/ps2ip.c
+static void ethStatusCheckCb(s32 alarm_id, u16 time, void *common)
+{
+	int threadID = *(int*)common;
+	iWakeupThread(threadID);
+}
+
+static int WaitValidNetState(int (*checkingFunction)(void))
+{
+	// Wait for a valid network status
+	int threadID = GetThreadId();
+	
+	for (int retries = 0; checkingFunction() == 0; retries++)
+	{	
+		// Sleep for 500ms
+		SetAlarm(500 * 16, &ethStatusCheckCb, &threadID);
+		SleepThread();
+
+		if (retries >= 15) return -1; // 7.5s = 15 * 500ms 
+	}
+	return 0;
+}
+
+static int ethGetNetIFLinkStatus()
+{
+	int status = NetManIoctl(NETMAN_NETIF_IOCTL_GET_LINK_STATUS, NULL, 0, NULL, 0);
+	return status == NETMAN_NETIF_ETH_LINK_STATE_UP;
+}
+
+static int ethWaitValidNetIFLinkState()
+{
+	return WaitValidNetState(&ethGetNetIFLinkStatus);
+}
+
+static int ethGetDHCPStatus()
+{
+	t_ip_info ip_info;
+	int result;
+	if ((result = ps2ip_getconfig("sm0", &ip_info)) < 0) return result;
+	
+	if (ip_info.dhcp_enabled) {
+		return ip_info.dhcp_status == DHCP_STATE_BOUND || ip_info.dhcp_status == DHCP_STATE_OFF;
+	}
+	return -1;
+}
+
+static int ethWaitValidDHCPState()
+{
+	return WaitValidNetState(&ethGetDHCPStatus);
+}
+
+static int ethEnableDHCP()
+{
+	t_ip_info ip_info;
+	int result;
+	// SMAP is registered as the "sm0" device to the TCP/IP stack.
+	if ((result = ps2ip_getconfig("sm0", &ip_info)) < 0) return result;
+
+	if (!ip_info.dhcp_enabled) {
+		ip_info.dhcp_enabled = 1;	
+		return ps2ip_setconfig(&ip_info);
+	}
+	return 1;
+}
+
+
 int net_init()
 {
 #if defined(CONF_FAMILY_WINDOWS)
@@ -1624,6 +1699,24 @@ int net_init()
 
 	struct ip4_addr IP  = { 0 }, NM = { 0 }, GW = { 0 };
 	ps2ipInit(&IP, &NM, &GW);
+
+	int err = ethEnableDHCP();
+	if (err < 0) printf("error %d enabling DHCP\n", &err);
+
+	printf("waiting for net link connection...\n");
+	if(ethWaitValidNetIFLinkState() != 0)
+	{
+		printf("failed to establish net link\n");
+		return 0;
+	}
+
+	printf("waiting for DHCP...\n");
+	if (ethWaitValidDHCPState() != 0)
+	{
+		printf("Failed to acquire DHCP\n");
+		return 0;
+	}
+	printf("Network setup done\n");
 #endif
 
 	return 0;
