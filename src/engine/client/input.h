@@ -16,6 +16,13 @@ class CInput : public IEngineInput
 
 	void AddEvent(int Unicode, int Key, int Flags);
 
+	bool LeftClick(unsigned short btns);
+	bool RightClick(unsigned short btns);
+	int LeftJoystickX(void* p);
+
+	unsigned short m_RightJoyX;
+	unsigned short m_RightJoyY;
+
 	IEngineGraphics *Graphics() { return m_pGraphics; }
 
 public:
