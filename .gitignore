@@ -1,0 +1,4 @@
+__pycache__/
+build/
+src/game/generated/
+*.elf
