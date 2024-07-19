@@ -37,43 +37,65 @@ void CGraphics_PS2_gsKit::Flush()
 	if(m_NumVertices == 0)
 		return;
 
-	if(m_RenderEnable && g_Config.m_GfxQuadAsTriangle)
+	if(m_RenderEnable)
 	{
-		for (int i=0; i<m_NumVertices; i+=3)
+		int vertexPrim = (g_Config.m_GfxQuadAsTriangle) ? 3 : 4;
+
+		for (int i=0; i<m_NumVertices; i+=vertexPrim)
 		{
 			// adjust vertices based on ortho projection
-			m_aVertices[i+0].m_Pos.x -= m_ScreenX0;
-			m_aVertices[i+0].m_Pos.y -= m_ScreenY0;
-			m_aVertices[i+1].m_Pos.x -= m_ScreenX0;
-			m_aVertices[i+1].m_Pos.y -= m_ScreenY0;
-			m_aVertices[i+2].m_Pos.x -= m_ScreenX0;
-			m_aVertices[i+2].m_Pos.y -= m_ScreenY0;
+			for (int j=0; j<vertexPrim; j++)
+			{
+				m_aVertices[i+j].m_Pos.x -= m_ScreenX0;
+				m_aVertices[i+j].m_Pos.y -= m_ScreenY0;
 
-			m_aVertices[i+0].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
-			m_aVertices[i+0].m_Pos.y /= (m_ScreenY1-m_ScreenY0) / gsGlobal->Height;
-			m_aVertices[i+1].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
-			m_aVertices[i+1].m_Pos.y /= (m_ScreenY1-m_ScreenY0) / gsGlobal->Height;
-			m_aVertices[i+2].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
-			m_aVertices[i+2].m_Pos.y /= (m_ScreenY1-m_ScreenY0) / gsGlobal->Height;
+				m_aVertices[i+j].m_Pos.x /= (m_ScreenX1-m_ScreenX0) / gsGlobal->Width;
+				m_aVertices[i+j].m_Pos.y /= (m_ScreenY1-m_ScreenY0) / gsGlobal->Height;
+			}
 
 			if (m_CurrTexture == -1)
-				gsKit_prim_triangle_gouraud_3d(gsGlobal,
-					m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,
-					m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,
-					m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,
-					GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*255, m_aVertices[i+0].m_Color.g*255, m_aVertices[i+0].m_Color.b*255, 128-m_aVertices[i+0].m_Color.a*128, 0),
-					GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*255, m_aVertices[i+1].m_Color.g*255, m_aVertices[i+1].m_Color.b*255, 128-m_aVertices[i+1].m_Color.a*128, 0),
-					GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*255, m_aVertices[i+2].m_Color.g*255, m_aVertices[i+2].m_Color.b*255, 128-m_aVertices[i+2].m_Color.a*128, 0));
+			{
+				if (g_Config.m_GfxQuadAsTriangle)
+					gsKit_prim_triangle_gouraud_3d(gsGlobal,
+						m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,
+						m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,
+						m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,
+						GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*255, m_aVertices[i+0].m_Color.g*255, m_aVertices[i+0].m_Color.b*255, 128-m_aVertices[i+0].m_Color.a*128, 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*255, m_aVertices[i+1].m_Color.g*255, m_aVertices[i+1].m_Color.b*255, 128-m_aVertices[i+1].m_Color.a*128, 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*255, m_aVertices[i+2].m_Color.g*255, m_aVertices[i+2].m_Color.b*255, 128-m_aVertices[i+2].m_Color.a*128, 0));
+				else
+					gsKit_prim_quad_gouraud_3d(gsGlobal,
+						m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,
+						m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,
+						m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,
+						m_aVertices[i+3].m_Pos.x, m_aVertices[i+3].m_Pos.y, 0,
+						GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*255, m_aVertices[i+0].m_Color.g*255, m_aVertices[i+0].m_Color.b*255, 128-m_aVertices[i+0].m_Color.a*128, 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*255, m_aVertices[i+1].m_Color.g*255, m_aVertices[i+1].m_Color.b*255, 128-m_aVertices[i+1].m_Color.a*128, 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*255, m_aVertices[i+2].m_Color.g*255, m_aVertices[i+2].m_Color.b*255, 128-m_aVertices[i+2].m_Color.a*128, 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+3].m_Color.r*255, m_aVertices[i+3].m_Color.g*255, m_aVertices[i+3].m_Color.b*255, 128-m_aVertices[i+3].m_Color.a*128, 0));
+			}
 			else
 			{
 				GSTEXTURE* gsTex = (GSTEXTURE*)m_aTextures[m_CurrTexture].m_Tex;
-				gsKit_prim_triangle_goraud_texture_3d(gsGlobal, gsTex,
-					m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,    m_aVertices[i+0].m_Tex.u * gsTex->Width, m_aVertices[i+0].m_Tex.v * gsTex->Height,
-					m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,    m_aVertices[i+1].m_Tex.u * gsTex->Width, m_aVertices[i+1].m_Tex.v * gsTex->Height,
-					m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,    m_aVertices[i+2].m_Tex.u * gsTex->Width, m_aVertices[i+2].m_Tex.v * gsTex->Height,
-					GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*128, m_aVertices[i+0].m_Color.g*128, m_aVertices[i+0].m_Color.b*128, (m_aVertices[i+0].m_Color.a*128), 0),
-					GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*128, m_aVertices[i+1].m_Color.g*128, m_aVertices[i+1].m_Color.b*128, (m_aVertices[i+1].m_Color.a*128), 0),
-					GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*128, m_aVertices[i+2].m_Color.g*128, m_aVertices[i+2].m_Color.b*128, (m_aVertices[i+2].m_Color.a*128), 0));
+
+				if (g_Config.m_GfxQuadAsTriangle)
+					gsKit_prim_triangle_goraud_texture_3d(gsGlobal, gsTex,
+						m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,    m_aVertices[i+0].m_Tex.u * gsTex->Width, m_aVertices[i+0].m_Tex.v * gsTex->Height,
+						m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,    m_aVertices[i+1].m_Tex.u * gsTex->Width, m_aVertices[i+1].m_Tex.v * gsTex->Height,
+						m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,    m_aVertices[i+2].m_Tex.u * gsTex->Width, m_aVertices[i+2].m_Tex.v * gsTex->Height,
+						GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*128, m_aVertices[i+0].m_Color.g*128, m_aVertices[i+0].m_Color.b*128, (m_aVertices[i+0].m_Color.a*128), 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*128, m_aVertices[i+1].m_Color.g*128, m_aVertices[i+1].m_Color.b*128, (m_aVertices[i+1].m_Color.a*128), 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*128, m_aVertices[i+2].m_Color.g*128, m_aVertices[i+2].m_Color.b*128, (m_aVertices[i+2].m_Color.a*128), 0));
+				else
+					gsKit_prim_quad_goraud_texture_3d(gsGlobal, gsTex,
+						m_aVertices[i+0].m_Pos.x, m_aVertices[i+0].m_Pos.y, 0,    m_aVertices[i+0].m_Tex.u * gsTex->Width, m_aVertices[i+0].m_Tex.v * gsTex->Height,
+						m_aVertices[i+1].m_Pos.x, m_aVertices[i+1].m_Pos.y, 0,    m_aVertices[i+1].m_Tex.u * gsTex->Width, m_aVertices[i+1].m_Tex.v * gsTex->Height,
+						m_aVertices[i+2].m_Pos.x, m_aVertices[i+2].m_Pos.y, 0,    m_aVertices[i+2].m_Tex.u * gsTex->Width, m_aVertices[i+2].m_Tex.v * gsTex->Height,
+						m_aVertices[i+3].m_Pos.x, m_aVertices[i+3].m_Pos.y, 0,    m_aVertices[i+3].m_Tex.u * gsTex->Width, m_aVertices[i+3].m_Tex.v * gsTex->Height,
+						GS_SETREG_RGBAQ(m_aVertices[i+0].m_Color.r*128, m_aVertices[i+0].m_Color.g*128, m_aVertices[i+0].m_Color.b*128, (m_aVertices[i+0].m_Color.a*128), 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+1].m_Color.r*128, m_aVertices[i+1].m_Color.g*128, m_aVertices[i+1].m_Color.b*128, (m_aVertices[i+1].m_Color.a*128), 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+2].m_Color.r*128, m_aVertices[i+2].m_Color.g*128, m_aVertices[i+2].m_Color.b*128, (m_aVertices[i+2].m_Color.a*128), 0),
+						GS_SETREG_RGBAQ(m_aVertices[i+3].m_Color.r*128, m_aVertices[i+3].m_Color.g*128, m_aVertices[i+3].m_Color.b*128, (m_aVertices[i+3].m_Color.a*128), 0));
 			}
 		}
 	}
@@ -244,6 +266,8 @@ void CGraphics_PS2_gsKit::LinesDraw(const CLineItem *pArray, int Num)
 {
 	dbg_assert(m_Drawing == DRAWING_LINES, "called Graphics()->LinesDraw without begin");
 
+	int vertexPrim = (g_Config.m_GfxQuadAsTriangle) ? 3 : 4;
+
 	for(int i = 0; i < Num; ++i)
 	{
 		m_aVertices[m_NumVertices + 3*i].m_Pos.x = pArray[i].m_X0;
@@ -260,9 +284,17 @@ void CGraphics_PS2_gsKit::LinesDraw(const CLineItem *pArray, int Num)
 		m_aVertices[m_NumVertices + 3*i + 2].m_Pos.y = pArray[i].m_Y1;
 		m_aVertices[m_NumVertices + 3*i + 2].m_Tex = m_aTexture[1];
 		m_aVertices[m_NumVertices + 3*i + 2].m_Color = m_aColor[1];
+
+		if (!g_Config.m_GfxQuadAsTriangle)
+		{
+			m_aVertices[m_NumVertices + 3*i + 3].m_Pos.x = pArray[i].m_X0;
+			m_aVertices[m_NumVertices + 3*i + 3].m_Pos.y = pArray[i].m_Y0;
+			m_aVertices[m_NumVertices + 3*i + 3].m_Tex = m_aTexture[0];
+			m_aVertices[m_NumVertices + 3*i + 3].m_Color = m_aColor[0];
+		}
 	}
 
-	AddVertices(3*Num);
+	AddVertices(vertexPrim*Num);
 }
 
 int CGraphics_PS2_gsKit::UnloadTexture(int Index)
