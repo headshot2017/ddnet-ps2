@@ -54,7 +54,9 @@
 	#if defined(_EE)
 		#include <ps2ip.h>
 		#include <netman.h>
+		#include <timer.h>
 		#include <kernel.h>
+		#include <delaythread.h>
 		#define NEWLIB_PORT_AWARE
 		#include <fileio.h>
 		#include <io_common.h>
@@ -544,9 +546,34 @@ int io_flush(IOHANDLE io)
 	return 0;
 }
 
+
+struct thread_data
+{
+	void (*threadfunc)(void *);
+	void *u;
+};
+
+static int thread_exec(void* arg)
+{
+	struct thread_data* d = (struct thread_data*)arg;
+	d->threadfunc(d->u);
+	return 0;
+}
+
 void *thread_init(void (*threadfunc)(void *), void *u)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	struct thread_data d = {threadfunc, u};
+	ee_thread_t thread = { 0 };
+	thread.func        = thread_exec;
+	thread.stack       = malloc(512*1024);
+	thread.stack_size  = 512*1024;
+	thread.gp_reg      = &_gp;
+	thread.initial_priority = 18;
+	int thdID = CreateThread(&thread);
+	StartThread(thdID, (void*)&d);
+	return (void*)thdID;
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_t id;
 	pthread_create(&id, NULL, (void *(*)(void*))threadfunc, u);
 	return (void*)id;
@@ -559,7 +586,16 @@ void *thread_init(void (*threadfunc)(void *), void *u)
 
 void thread_wait(void *thread)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	int thdID = (int)thread;
+	ee_thread_status_t info;
+	while(1)
+	{
+		ReferThreadStatus(thdID, &info);
+		if (info.status == THS_DORMANT) break;
+		thread_sleep(10);
+	}
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_join((pthread_t)thread, NULL);
 #elif defined(CONF_FAMILY_WINDOWS)
 	WaitForSingleObject((HANDLE)thread, INFINITE);
@@ -570,7 +606,9 @@ void thread_wait(void *thread)
 
 void thread_destroy(void *thread)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	TerminateThread((int)thread);
+#elif defined(CONF_FAMILY_UNIX)
 	void *r = 0;
 	pthread_join((pthread_t)thread, &r);
 #else
@@ -580,7 +618,9 @@ void thread_destroy(void *thread)
 
 void thread_yield()
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	
+#elif defined(CONF_FAMILY_UNIX)
 	sched_yield();
 #elif defined(CONF_FAMILY_WINDOWS)
 	Sleep(0);
@@ -591,7 +631,9 @@ void thread_yield()
 
 void thread_sleep(int milliseconds)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	DelayThread(milliseconds*1000);
+#elif defined(CONF_FAMILY_UNIX)
 	usleep(milliseconds*1000);
 #elif defined(CONF_FAMILY_WINDOWS)
 	Sleep(milliseconds);
@@ -602,7 +644,9 @@ void thread_sleep(int milliseconds)
 
 void thread_detach(void *thread)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_detach((pthread_t)(thread));
 #elif defined(CONF_FAMILY_WINDOWS)
 	CloseHandle(thread);
@@ -614,7 +658,9 @@ void thread_detach(void *thread)
 
 
 
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+typedef ee_sema_t LOCKINTERNAL;
+#elif defined(CONF_FAMILY_UNIX)
 typedef pthread_mutex_t LOCKINTERNAL;
 #elif defined(CONF_FAMILY_WINDOWS)
 typedef CRITICAL_SECTION LOCKINTERNAL;
@@ -624,33 +670,45 @@ typedef CRITICAL_SECTION LOCKINTERNAL;
 
 LOCK lock_create()
 {
+#if defined(_EE)
+	ee_sema_t lock = {0};
+	lock.init_count = 1;
+	lock.max_count  = 1;
+	int semID = CreateSema(&lock);
+	return (LOCK)semID;
+#elif defined(CONF_FAMILY_UNIX)
 	LOCKINTERNAL *lock = (LOCKINTERNAL*)mem_alloc(sizeof(LOCKINTERNAL), 4);
-
-#if defined(CONF_FAMILY_UNIX)
 	pthread_mutex_init(lock, 0x0);
+	return (LOCK)lock;
 #elif defined(CONF_FAMILY_WINDOWS)
+	LOCKINTERNAL *lock = (LOCKINTERNAL*)mem_alloc(sizeof(LOCKINTERNAL), 4);
 	InitializeCriticalSection((LPCRITICAL_SECTION)lock);
+	return (LOCK)lock;
 #else
 	#error not implemented on this platform
 #endif
-	return (LOCK)lock;
 }
 
 void lock_destroy(LOCK lock)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	DeleteSema((int)lock);
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_mutex_destroy((LOCKINTERNAL *)lock);
+	_mem_free(lock);
 #elif defined(CONF_FAMILY_WINDOWS)
 	DeleteCriticalSection((LPCRITICAL_SECTION)lock);
+	_mem_free(lock);
 #else
 	#error not implemented on this platform
 #endif
-	_mem_free(lock);
 }
 
 int lock_trylock(LOCK lock)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	return PollSema((int)lock);
+#elif defined(CONF_FAMILY_UNIX)
 	return pthread_mutex_trylock((LOCKINTERNAL *)lock);
 #elif defined(CONF_FAMILY_WINDOWS)
 	return !TryEnterCriticalSection((LPCRITICAL_SECTION)lock);
@@ -661,7 +719,9 @@ int lock_trylock(LOCK lock)
 
 void lock_wait(LOCK lock)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	WaitSema((int)lock);
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_mutex_lock((LOCKINTERNAL *)lock);
 #elif defined(CONF_FAMILY_WINDOWS)
 	EnterCriticalSection((LPCRITICAL_SECTION)lock);
@@ -672,7 +732,9 @@ void lock_wait(LOCK lock)
 
 void lock_unlock(LOCK lock)
 {
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	SignalSema((int)lock);
+#elif defined(CONF_FAMILY_UNIX)
 	pthread_mutex_unlock((LOCKINTERNAL *)lock);
 #elif defined(CONF_FAMILY_WINDOWS)
 	LeaveCriticalSection((LPCRITICAL_SECTION)lock);
@@ -682,7 +744,17 @@ void lock_unlock(LOCK lock)
 }
 
 #if !defined(CONF_PLATFORM_MACOSX)
-	#if defined(CONF_FAMILY_UNIX)
+	#if defined(_EE)
+	void semaphore_init(SEMAPHORE *sem) {
+		ee_sema_t sema = {0};
+		sema.init_count = 0;
+		sema.max_count  = 1;
+		*sem = CreateSema(&sema);
+	}
+	void semaphore_wait(SEMAPHORE *sem) { WaitSema(*sem); }
+	void semaphore_signal(SEMAPHORE *sem) { SignalSema(*sem); }
+	void semaphore_destroy(SEMAPHORE *sem) { DeleteSema(*sem); }
+	#elif defined(CONF_FAMILY_UNIX)
 	void semaphore_init(SEMAPHORE *sem) { sem_init(sem, 0, 0); }
 	void semaphore_wait(SEMAPHORE *sem) { sem_wait(sem); }
 	void semaphore_signal(SEMAPHORE *sem) { sem_post(sem); }
@@ -713,7 +785,10 @@ int64 time_get()
 	if(new_tick != -1)
 		new_tick = 0;
 
-#if defined(CONF_FAMILY_UNIX)
+#if defined(_EE)
+	last = GetTimerSystemTime() / (float)kBUSCLK * time_freq();
+	return last;
+#elif defined(CONF_FAMILY_UNIX)
 	struct timeval val;
 	gettimeofday(&val, NULL);
 	last = (int64)val.tv_sec*(int64)1000000+(int64)val.tv_usec;
@@ -1037,6 +1112,7 @@ static void priv_net_close_socket(int sock)
 #if defined(CONF_FAMILY_WINDOWS)
 	closesocket(sock);
 #else
+	lwip_shutdown(sock, SHUT_RDWR);
 	lwip_close(sock);
 #endif
 }
@@ -1078,7 +1154,7 @@ static int priv_net_create_socket(int domain, int type, struct sockaddr *addr, i
 	int sock, e;
 
 	/* create socket */
-	sock = lwip_socket(domain, type, (type == SOCK_STREAM) ? IPPROTO_TCP : IPPROTO_UDP);
+	sock = lwip_socket(domain, type, 0);
 	if(sock < 0)
 	{
 #if defined(CONF_FAMILY_WINDOWS)
@@ -1093,15 +1169,16 @@ static int priv_net_create_socket(int domain, int type, struct sockaddr *addr, i
 		return -1;
 	}
 
+/*
 #if defined(CONF_FAMILY_UNIX)
-	/* on tcp sockets set SO_REUSEADDR
-		to fix port rebind on restart */
+	// on tcp sockets set SO_REUSEADDR to fix port rebind on restart
 	if (domain == AF_INET && type == SOCK_STREAM)
 	{
 		int option = 1;
 		lwip_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 	}
 #endif
+*/
 
 	/* set to IPv6 only if thats what we are creating */
 #if defined(IPV6_V6ONLY)	/* windows sdk 6.1 and higher */
@@ -1112,7 +1189,8 @@ static int priv_net_create_socket(int domain, int type, struct sockaddr *addr, i
 	}
 #endif
 
-	/* bind the socket */
+/*
+	// bind the socket
 	e = lwip_bind(sock, addr, sockaddrlen);
 	if(e != 0)
 	{
@@ -1128,6 +1206,7 @@ static int priv_net_create_socket(int domain, int type, struct sockaddr *addr, i
 		priv_net_close_socket(sock);
 		return -1;
 	}
+*/
 
 	/* return the newly created socket */
 	return sock;
@@ -1997,7 +2076,7 @@ void swap_endian(void *data, unsigned elem_size, unsigned num)
 
 int net_socket_read_wait(NETSOCKET sock, int time)
 {
-	struct timeval tv;
+	struct timeval tv = {0};
 	fd_set readfds;
 	int sockid;
 

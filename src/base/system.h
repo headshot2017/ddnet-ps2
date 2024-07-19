@@ -413,7 +413,9 @@ void lock_unlock(LOCK lock);
 /* Group: Semaphores */
 
 #if !defined(CONF_PLATFORM_MACOSX)
-	#if defined(CONF_FAMILY_UNIX)
+	#if defined(_EE)
+		typedef int SEMAPHORE;
+	#elif defined(CONF_FAMILY_UNIX)
 		#include <semaphore.h>
 		typedef sem_t SEMAPHORE;
 	#elif defined(CONF_FAMILY_WINDOWS)
