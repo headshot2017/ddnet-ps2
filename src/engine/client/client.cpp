@@ -13,6 +13,7 @@
 #include <loadfile.h>
 #include <iopcontrol.h>
 #include <sbv_patches.h>
+#include <kernel.h>
 
 #include <base/math.h>
 #include <base/vmath.h>
@@ -2650,7 +2651,7 @@ void CClient::Run()
 	while (1)
 	{
 		//
-		VersionUpdate();
+		//VersionUpdate();
 
 		// handle pending connects
 		if(m_aCmdConnect[0])
@@ -3328,6 +3329,8 @@ int main(int argc, const char **argv) // ignore_convention
 	if (!retryCount) printf("Failed to init USB RPC: %d\n", ret);
 	else printf("Loaded USB driver\n");
 
+	int main_id = GetThreadId();
+	ChangeThreadPriority(main_id, 80);
 
 	CClient *pClient = CreateClient();
 	IKernel *pKernel = IKernel::Create();
