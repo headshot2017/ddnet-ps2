@@ -2,6 +2,8 @@
 
 Port of DDNet 9 to the Sony PlayStation 2.
 
+![image](screenshot.png)
+
 To compile, install the latest build of [PS2DEV](https://github.com/ps2dev/ps2dev) from the [Actions page](https://github.com/ps2dev/ps2dev/actions/workflows/compilation.yml) (it's easier than building it yourself, I say from experience), set up the necessary PS2SDK environment variables, and run `make`.
 
 Original README follows
