@@ -6,6 +6,10 @@ Port of DDNet 9 to the Sony PlayStation 2.
 
 To compile, install the latest build of [PS2DEV](https://github.com/ps2dev/ps2dev) from the [Actions page](https://github.com/ps2dev/ps2dev/actions/workflows/compilation.yml) (it's easier than building it yourself, I say from experience), set up the necessary PS2SDK environment variables, and run `make`.
 
+NOTE: The game is very laggy and is in need of optimization such as:
+* Drawing a list of primitives directly instead of individual primitives
+* Making use of the vector units
+
 Original README follows
 
 [![DDraceNetwork](http://ddnet.tw/ddnet-small.png)](http://ddnet.tw) [![Build Status](https://circleci.com/gh/ddnet/ddnet/tree/master.png)](https://circleci.com/gh/ddnet/ddnet)
