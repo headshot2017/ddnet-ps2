@@ -372,6 +372,12 @@ int CGraphics_PS2_gsKit::LoadTextureRaw(int Width, int Height, int Format, const
 		gsTex->PSM = GS_PSM_CT24;
 
 	gsTex->Mem = (u32*)mem_alloc(gsKit_texture_size_ee(Width, Height, gsTex->PSM), 1);
+	if (!gsTex->Mem)
+	{
+		if (pTmpData) _mem_free(pTmpData);
+		return m_InvalidTexture;
+	}
+
 	for (int i=0; i<Width*Height; i++)
 	{
 		u8 r = pTexData[i*4+0];
