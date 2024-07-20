@@ -375,6 +375,7 @@ int CGraphics_PS2_gsKit::LoadTextureRaw(int Width, int Height, int Format, const
 	if (!gsTex->Mem)
 	{
 		if (pTmpData) _mem_free(pTmpData);
+		_mem_free(gsTex);
 		return m_InvalidTexture;
 	}
 
