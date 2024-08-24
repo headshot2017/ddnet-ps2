@@ -11,7 +11,7 @@ enum
 	TEXTFLAG_STOP_AT_END=4
 };
 
-class CFont;
+class BMFont;
 
 class CTextCursor
 {
@@ -26,7 +26,7 @@ public:
 	float m_LineWidth;
 	float m_X, m_Y;
 
-	CFont *m_pFont;
+	BMFont *m_pFont;
 	float m_FontSize;
 };
 
@@ -36,10 +36,10 @@ class ITextRender : public IInterface
 public:
 	virtual void SetCursor(CTextCursor *pCursor, float x, float y, float FontSize, int Flags) = 0;
 
-	virtual CFont *LoadFont(const char *pFilename) = 0;
-	virtual void DestroyFont(CFont *pFont) = 0;
+	virtual BMFont *LoadFont(const char *pFilename) = 0;
+	virtual void DestroyFont(BMFont *pFont) = 0;
 
-	virtual void SetDefaultFont(CFont *pFont) = 0;
+	virtual void SetDefaultFont(BMFont *pFont) = 0;
 
 	//
 	virtual void TextEx(CTextCursor *pCursor, const char *pText, int Length) = 0;
