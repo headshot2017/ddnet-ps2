@@ -1932,7 +1932,7 @@ int fs_listdir(const char *dir, FS_LISTDIR_CALLBACK cb, int type, void *user)
 
 int fs_storage_path(const char *appname, char *path, int max)
 {
-	snprintf(path, max, "mass:/APPS/DDNET/USER");
+	snprintf(path, max, "./data/user");
 	return 0;
 }
 

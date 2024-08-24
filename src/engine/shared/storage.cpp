@@ -161,8 +161,8 @@ public:
 
 	void FindDatadir(const char *pArgv0)
 	{
-		str_format(m_aDatadir, sizeof(m_aDatadir), "mass:/APPS/DDNET");
-		str_copy(m_aBinarydir, "", sizeof(m_aBinarydir));
+		str_format(m_aDatadir, sizeof(m_aDatadir), "./data");
+		str_copy(m_aBinarydir, "./", sizeof(m_aBinarydir));
 	}
 
 
