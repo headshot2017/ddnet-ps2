@@ -775,6 +775,7 @@ int CGraphics_PS2_gsKit::Init()
 	gsGlobal->PSM = GS_PSM_CT32;
 	gsGlobal->PSMZ = GS_PSMZ_16S;
 	gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
+	gsGlobal->ZBuffering = GS_SETTING_OFF;
 
 	// default dmaKit initialization
 	dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC, D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
