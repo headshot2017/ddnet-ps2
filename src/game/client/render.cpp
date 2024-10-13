@@ -161,7 +161,9 @@ void CRenderTools::DrawUIRect(const CUIRect *r, vec4 Color, int Corners, float R
 	// TODO: FIX US
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
-	DrawRoundRectExt(r->x,r->y,r->w,r->h,Rounding*UI()->Scale(), Corners);
+	//DrawRoundRectExt(r->x,r->y,r->w,r->h,Rounding*UI()->Scale(), Corners);
+	IGraphics::CQuadItem item(r->x, r->y, r->w, r->h);
+	Graphics()->QuadsDrawTL(&item, 1);
 	Graphics()->QuadsEnd();
 }
 
