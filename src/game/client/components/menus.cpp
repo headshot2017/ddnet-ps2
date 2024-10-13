@@ -1849,14 +1849,14 @@ void CMenus::OnRender()
 	m_NumInputEvents = 0;
 }
 
-static int gs_TextureBlob = -1;
+//static int gs_TextureBlob = -1;
 
 void CMenus::RenderBackground()
 {
 	//Graphics()->Clear(1,1,1);
 	//render_sunrays(0,0);
-	if(gs_TextureBlob == -1)
-		gs_TextureBlob = Graphics()->LoadTexture("blob.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
+	//if(gs_TextureBlob == -1)
+		//gs_TextureBlob = Graphics()->LoadTexture("blob.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
 
 
 	float sw = 300*Graphics()->ScreenAspect();
@@ -1880,6 +1880,7 @@ void CMenus::RenderBackground()
 		Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
 
+	/*
 	// render the tiles
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
@@ -1901,6 +1902,7 @@ void CMenus::RenderBackground()
 		QuadItem = IGraphics::CQuadItem(-100, -100, sw+200, sh+200);
 		Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
+	*/
 
 	// restore screen
 	{CUIRect Screen = *UI()->Screen();
