@@ -161,8 +161,11 @@ public:
 
 	void FindDatadir(const char *pArgv0)
 	{
-		str_format(m_aDatadir, sizeof(m_aDatadir), "./data");
-		str_copy(m_aBinarydir, "./", sizeof(m_aBinarydir));
+		char cwd[256];
+		fs_getcwd(cwd, sizeof(cwd));
+
+		str_format(m_aDatadir, sizeof(m_aDatadir), "%s/data", cwd);
+		str_copy(m_aBinarydir, cwd, sizeof(m_aBinarydir));
 	}
 
 

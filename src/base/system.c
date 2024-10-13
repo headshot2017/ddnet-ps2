@@ -1932,7 +1932,9 @@ int fs_listdir(const char *dir, FS_LISTDIR_CALLBACK cb, int type, void *user)
 
 int fs_storage_path(const char *appname, char *path, int max)
 {
-	snprintf(path, max, "./data/user");
+	char cwd[256];
+	fs_getcwd(cwd, sizeof(cwd));
+	snprintf(path, max, "%s/data/user", cwd);
 	return 0;
 }
 
